@@ -12,12 +12,14 @@
 
   <style>
     body { margin: 0; padding: 0; }
+
     /* both map containers take the entire viewport */
     #map, #cesiumContainer {
       width: 100vw;
       height: 100vh;
       display: none;
     }
+
     #toggle {
       position: absolute;
       top: 10px;
@@ -26,9 +28,21 @@
       padding: 5px;
       background: white;
     }
+
+    /* heading bar styling */
+    #heading {
+      text-align: center;
+      background-color: #add8e6;
+      color: black;
+      padding: 10px 0;
+    }
   </style>
 </head>
 <body>
+  <div id="heading">
+    <h1>SOLV Procurement and Weather Software</h1>
+    <h2>developed by Group 1 May Intern Cohort</h2>
+  </div>
   <button id="toggle">Switch to 3D</button>
   <div id="map"></div>
   <div id="cesiumContainer"></div>
