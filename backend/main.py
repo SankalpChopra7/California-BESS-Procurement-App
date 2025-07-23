@@ -1,37 +1,35 @@
 from fastapi import FastAPI, HTTPException
-from pathlib import Path
-import json
-import requests
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from pathlib import Path
+import requests
 from .parse_excel import get_suppliers, get_projects
 
 app = FastAPI(title="BESS Procurement API")
 
-# Mount frontend static directory
+# Serve your frontend
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
-
-# Serve index.html at root
 @app.get("/")
 def serve_index():
     return FileResponse("frontend/index.html")
 
-# Supplier endpoint using Excel parser
+# Return cached & cleaned supplier data (with URLs)
 @app.get("/suppliers")
 def suppliers():
-    """Return supplier information from the Excel workbook."""
-    return get_suppliers()
+    data = get_suppliers()
+    # ensure nan → null in JSON
+    return JSONResponse(content=jsonable_encoder(data))
 
-# Project endpoint using Excel parser
+# Return project data
 @app.get("/projects")
 def projects():
-    """Return BESS project information from the Excel workbook."""
-    return get_projects()
+    data = get_projects()
+    return JSONResponse(content=jsonable_encoder(data))
 
-# Weather endpoint with error handling
+# Weather endpoint (unchanged)
 @app.get("/weather/{lat}/{lon}")
 def weather(lat: float, lon: float):
-    """Fetch simple weather forecast data from Open-Meteo."""
     try:
         resp = requests.get(
             "https://api.open-meteo.com/v1/forecast",
@@ -47,4 +45,3 @@ def weather(lat: float, lon: float):
     except requests.RequestException as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     return resp.json()
-
