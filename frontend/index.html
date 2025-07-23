@@ -12,8 +12,24 @@
 
   <style>
     body { margin: 0; padding: 0; }
-    #map, #cesiumContainer { width: 100%; height: 600px; display: none; }
-    #toggle { position: absolute; top: 10px; left: 10px; z-index: 999; padding: 5px; background: white; }
+
+    /* both map containers take the entire viewport */
+    #map, #cesiumContainer {
+      width: 100vw;
+      height: 100vh;
+      display: none;
+    }
+
+    #toggle {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 999;
+      padding: 5px;
+      background: white;
+    }
+
+    /* heading bar styling */
     #heading {
       text-align: center;
       background-color: #add8e6;
@@ -40,13 +56,13 @@
   <script>
     let is3D = false;
 
-    // Leaflet 2D map
-    const map = L.map('map').setView([37.7749, -122.4194], 6); // Example center (California)
+    // Leaflet map setup
+    const map = L.map('map');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // Cesium 3D viewer
+    // Cesium viewer
     Cesium.Ion.defaultAccessToken = '';
     const viewer = new Cesium.Viewer('cesiumContainer', {
       imageryProvider: new Cesium.UrlTemplateImageryProvider({
@@ -62,30 +78,40 @@
       const suppliers = await fetch('/suppliers').then(r => r.json());
       const projects = await fetch('/projects').then(r => r.json());
 
+      const latlngs = [];
+
       // Add to Leaflet
       suppliers.forEach(s => {
         if (s.lat && s.lon) {
-          L.circleMarker([s.lat, s.lon], { radius: 5, color: 'blue' })
-            .bindPopup(`${s.company} (${s.service_type})`)
+          const popup = `<b>${s.company}</b>${s.contact_url ? ` - <a href="${s.contact_url}" target="_blank">Link</a>` : ''}`;
+          L.circleMarker([s.lat, s.lon], { radius: 6, color: 'blue' })
+            .bindPopup(popup)
             .addTo(map);
+          latlngs.push([s.lat, s.lon]);
         }
       });
 
       projects.forEach(p => {
         if (p.lat && p.lon) {
+          const popup = `<b>${p.project}</b>`;
           L.circleMarker([p.lat, p.lon], { radius: 6, color: 'red' })
-            .bindPopup(`${p.project} - ${p.location}`)
+            .bindPopup(popup)
             .addTo(map);
+          latlngs.push([p.lat, p.lon]);
         }
       });
+
+      if (latlngs.length) {
+        map.fitBounds(latlngs);
+      }
 
       // Add to Cesium
       suppliers.forEach(s => {
         if (s.lat && s.lon) {
           viewer.entities.add({
             position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat),
-            point: { pixelSize: 6, color: Cesium.Color.BLUE },
-            description: `${s.company} (${s.service_type})`
+            point: { pixelSize: 8, color: Cesium.Color.BLUE },
+            description: `<b>${s.company}</b>${s.contact_url ? `<br/><a href="${s.contact_url}" target="_blank">Link</a>` : ''}`
           });
         }
       });
@@ -95,10 +121,21 @@
           viewer.entities.add({
             position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat),
             point: { pixelSize: 10, color: Cesium.Color.RED },
-            description: `${p.project} - ${p.location}`
+            description: `<b>${p.project}</b>`
           });
         }
       });
+
+      if (latlngs.length) {
+        const bounds = L.latLngBounds(latlngs);
+        const rect = Cesium.Rectangle.fromDegrees(
+          bounds.getWest(),
+          bounds.getSouth(),
+          bounds.getEast(),
+          bounds.getNorth()
+        );
+        viewer.camera.flyTo({ destination: rect });
+      }
     }
 
     // Toggle between 2D and 3D
