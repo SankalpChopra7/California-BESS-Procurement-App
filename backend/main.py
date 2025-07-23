@@ -1,39 +1,50 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pathlib import Path
 import json
 import requests
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from .parse_excel import get_suppliers, get_projects
 
-app = FastAPI()
+app = FastAPI(title="BESS Procurement API")
 
-# Setup for static files
+# Mount frontend static directory
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
-DATA_DIR = Path(__file__).resolve().parents[1] / "data"
-
-def load_data(filename):
-    path = DATA_DIR / filename
-    if path.exists():
-        with open(path) as f:
-            return json.load(f)
-    return []
-
-@app.get("/suppliers")
-def get_suppliers():
-    return load_data("suppliers.json")
-
-@app.get("/projects")
-def get_projects():
-    return load_data("projects.json")
-
-@app.get("/weather/{lat}/{lon}")
-def get_weather(lat: float, lon: float):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
-    r = requests.get(url)
-    return r.json()
-
-# Serve index.html as default (optional but common)
+# Serve index.html at root
 @app.get("/")
 def serve_index():
     return FileResponse("frontend/index.html")
+
+# Supplier endpoint using Excel parser
+@app.get("/suppliers")
+def suppliers():
+    """Return supplier information from the Excel workbook."""
+    return get_suppliers()
+
+# Project endpoint using Excel parser
+@app.get("/projects")
+def projects():
+    """Return BESS project information from the Excel workbook."""
+    return get_projects()
+
+# Weather endpoint with error handling
+@app.get("/weather/{lat}/{lon}")
+def weather(lat: float, lon: float):
+    """Fetch simple weather forecast data from Open-Meteo."""
+    try:
+        resp = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "hourly": "temperature_2m",
+                "current_weather": True
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    return resp.json()
+
