@@ -1,0 +1,7 @@
+[
+  {"id": 1, "name": "Zeta Solar", "client": "Longroad", "location": "Los Banos, California", "lat": 37.0591, "lon": -120.8505},
+  {"id": 2, "name": "Cherry Phase 1", "client": "CIM", "location": "Lemoore, California", "lat": 36.3003, "lon": -119.7829},
+  {"id": 3, "name": "Aquamarine", "client": "CIM", "location": "Stratford, California", "lat": 36.1897, "lon": -119.8237},
+  {"id": 4, "name": "Azalea", "client": "Idemitsu", "location": "Lost Hills, California", "lat": 35.6161, "lon": -119.6935},
+  {"id": 5, "name": "Pelicans Jaw", "client": "SB Energy", "location": "Lost Hills, California", "lat": 35.6161, "lon": -119.6935}
+]
