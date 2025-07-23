@@ -1,0 +1,173 @@
+[
+  {
+    "project": "Zeta Solar ",
+    "location": "Los Banos, California ",
+    "mw_ac": 75,
+    "mw_dc": 96,
+    "client": "Longroad ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Cherry Phase 1 ",
+    "location": "Lemoore, California ",
+    "mw_ac": 250,
+    "mw_dc": 325,
+    "client": "CIM",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Aquamarine ",
+    "location": "Stratford, California ",
+    "mw_ac": 250,
+    "mw_dc": 325,
+    "client": "CIM ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Azalea ",
+    "location": "Lost Hills, California",
+    "mw_ac": 60,
+    "mw_dc": 84,
+    "client": "Idemitsu ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Pelicans Jaw ",
+    "location": "Lost Hills, California",
+    "mw_ac": 440,
+    "mw_dc": 574,
+    "client": "SB Energy ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Snowflake ",
+    "location": "Holbrook, Arizona ",
+    "mw_ac": 475,
+    "mw_dc": 593,
+    "client": "Clenera ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "CO Bar C ",
+    "location": "Williams, Arizona ",
+    "mw_ac": 206,
+    "mw_dc": 258,
+    "client": "Clenera ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Maricopa Phase 1 ",
+    "location": "Tonopah, Arizona ",
+    "mw_ac": 0,
+    "mw_dc": 250,
+    "client": "Copia ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Maricopa Phase 2 ",
+    "location": "Tonopah, Arizona ",
+    "mw_ac": 0,
+    "mw_dc": 618,
+    "client": "Copia ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Harquahala ",
+    "location": "Tonopah, Arizona ",
+    "mw_ac": 0,
+    "mw_dc": 0,
+    "client": "Copia ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Nightfall",
+    "location": "Uvalde, Texas ",
+    "mw_ac": 180,
+    "mw_dc": 212,
+    "client": "Sol Systems ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "El Patrimonio",
+    "location": "San Antonio, Texas ",
+    "mw_ac": 150,
+    "mw_dc": 195,
+    "client": "Ashtrom ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Stillhouse ",
+    "location": "Rogers, Texas ",
+    "mw_ac": 210,
+    "mw_dc": 281,
+    "client": "Matrix ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Big Rooter West ",
+    "location": "Bremond, Texas ",
+    "mw_ac": 400,
+    "mw_dc": 496,
+    "client": "Panamint",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Tormes ",
+    "location": "Barry, Texas ",
+    "mw_ac": 355,
+    "mw_dc": 455,
+    "client": "Matrix ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Tennyson",
+    "location": "Tennyson, Texas ",
+    "mw_ac": 150,
+    "mw_dc": 195,
+    "client": "Akuo ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "1000 Mile ",
+    "location": "Plains, Texas ",
+    "mw_ac": 300,
+    "mw_dc": 400,
+    "client": "Longroad ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Misae Solar Park II ",
+    "location": "Childress, Texas ",
+    "mw_ac": 332,
+    "mw_dc": 431,
+    "client": "Greenalia ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  },
+  {
+    "project": "Adams Creek",
+    "location": "Electra, Texas ",
+    "mw_ac": 250,
+    "mw_dc": 325,
+    "client": "Savion ",
+    "lat": 36.7783,
+    "lon": -119.4179
+  }
+]

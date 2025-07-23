@@ -1,5 +1,27 @@
 # California-BESS-Procurement-App
-California BESS Procurement + Weather Software 
-Provided a scraped excel database that comprises of 5 different sheets. The first sheet defines California County Data - California County, Service Types, Company Name, link to their Google Contact information, and location on google maps. The second is for Arizona County data and starts by defining Arizona counties, Service type, company name, notes on the company, placeholder company website, and location on google maps. The third sheet is the same for Texas. In the fourth sheet, I have defined the top suppliers of BESS equipment in each of the three states with a little summary about their key presence. This is for different BESS equipment materials. In the fifth sheet, I have listed all the current BESS projects currently being executed and their location and capacity. 
 
-I want to use openstreetmaps api, cesiumJS, free weather api to chart out each of these companies on a 2d and 3d map. The goal is for this to help with local procurement for new BESS (battery energy storage system) by showing local suppliers for materials. How do you intend to implement this
+This project visualizes suppliers and BESS projects from an Excel workbook on an interactive map. The map can switch between 2D and 3D views using CesiumJS with OpenStreetMap tiles. Weather data is fetched from the free Open-Meteo API.
+
+## Setup
+1. Install Python 3.11 and Node.js (if using additional tooling).
+2. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Parse the Excel workbook and generate JSON data:
+   ```bash
+   python backend/parse_excel.py
+   ```
+   This will create `data/suppliers.json` and `data/projects.json` along with a small geocoding cache.
+4. Start the FastAPI server:
+   ```bash
+   uvicorn backend.main:app --reload
+   ```
+5. Open `frontend/index.html` in your browser. When served from the same host as the backend, the map will load supplier and project markers. Use the **Toggle 2D/3D** button to switch views.
+
+## Files
+- `backend/parse_excel.py` – parses the Excel workbook and geocodes locations using OpenStreetMap.
+- `backend/main.py` – FastAPI server providing `/suppliers`, `/projects`, and `/weather/{lat}/{lon}` endpoints.
+- `frontend/index.html` – simple CesiumJS viewer displaying data from the backend with a toggle between 2D and 3D modes.
+
+Run the parsing script after updating the Excel file to regenerate the JSON used by the map.
