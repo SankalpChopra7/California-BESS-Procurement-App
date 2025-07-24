@@ -1,154 +1,218 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>BESS Procurement Map</title>
+  <meta charset="UTF-8">
+  <title>CA‑AZ‑TX BESS Procurement Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
   <!-- Cesium CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <link
+    href="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Widgets/widgets.css"
+    rel="stylesheet"
+  />
 
   <style>
-    body { margin: 0; padding: 0; }
+    html, body { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; }
+    #toolbar {
+      position:absolute; top:0; left:0; width:100%; height:50px;
+      background:#fff; border-bottom:1px solid #ddd;
+      display:flex; align-items:center; padding:0 10px; box-sizing:border-box;
+      z-index:1000;
+    }
+    #toolbar input[type="text"] {
+      width:200px; padding:6px; margin-right:8px; border:1px solid #ccc; border-radius:4px;
+    }
+    #toolbar button {
+      padding:6px 12px; margin-right:8px;
+      background:#007bff; color:#fff; border:none; border-radius:4px;
+      cursor:pointer;
+    }
+    #toolbar button:hover { background:#0056b3; }
 
-    /* both map containers take the entire viewport */
     #map, #cesiumContainer {
-      width: 100vw;
-      height: 100vh;
-      display: none;
+      position:absolute; top:50px; left:0;
+      width:100%; height:calc(100% - 50px);
     }
+    #cesiumContainer { display:none; }
 
-    #toggle {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 999;
-      padding: 5px;
-      background: white;
+    .leaflet-popup-content, .cesium-popup {
+      max-height:300px; overflow:auto;
     }
+    .leaflet-popup-content h2 { margin:0 0 .5em; font-size:1.1em; }
+    .leaflet-popup-content ul { padding-left:1.2em; margin:0 0 .5em; }
 
-    /* heading bar styling */
-    #heading {
-      text-align: center;
-      background-color: #add8e6;
-      color: black;
-      padding: 10px 0;
-    }
+    .supplier-icon { background: #28a745; border-radius: 50%; width:20px; height:20px; }
+    .project-icon  { background: #dc3545; border-radius: 50%; width:20px; height:20px; }
   </style>
 </head>
 <body>
-  <div id="heading">
-    <h1>SOLV Procurement and Weather Software</h1>
-    <h2>developed by Group 1 May Intern Cohort</h2>
+
+  <div id="toolbar">
+    <input id="searchBox" type="text" placeholder="Enter county name…">
+    <button id="searchBtn">Search</button>
+    <button id="toggleBtn">Switch to 3D</button>
   </div>
-  <button id="toggle">Switch to 3D</button>
+
   <div id="map"></div>
   <div id="cesiumContainer"></div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
   <!-- Cesium JS -->
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Cesium.js"></script>
 
   <script>
-    let is3D = false;
+  //———— Utilities ————
+  function groupBy(arr, fn) {
+    return arr.reduce((acc, x) => {
+      const key = fn(x);
+      (acc[key] = acc[key]||[]).push(x);
+      return acc;
+    }, {});
+  }
+  function flyToCesium(bounds) {
+    viewer.camera.flyTo({ destination: Cesium.Rectangle.fromDegrees(bounds.w, bounds.s, bounds.e, bounds.n) });
+  }
+  function fitLeaflet(map, bounds) {
+    map.fitBounds([[bounds.s, bounds.w], [bounds.n, bounds.e]]);
+  }
 
-    // Leaflet map setup
-    const map = L.map('map');
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  //———— Load Data ————
+  async function loadSuppliers() {
+    const resp = await fetch('/suppliers');
+    return await resp.json();
+  }
+
+  //———— Leaflet 2D ————
+  let leafletMap, leafletMarkers = [];
+  function initLeaflet(data) {
+    // bounding box
+    const lats = data.map(d=>d.lat), lons = data.map(d=>d.lon);
+    const bounds = {
+      s: Math.min(...lats), n: Math.max(...lats),
+      w: Math.min(...lons), e: Math.max(...lons)
+    };
+    leafletMap = L.map('map');
+    fitLeaflet(leafletMap, bounds);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+    }).addTo(leafletMap);
 
-    // Cesium viewer
+    const byCounty = groupBy(data, d=>d.county);
+    Object.entries(byCounty).forEach(([county, items]) => {
+      const {lat, lon} = items[0];
+      let html = `<h2>${county}</h2>`;
+      const byService = groupBy(items, i=>i.service_type||'Other');
+      Object.entries(byService).forEach(([svc, arr]) => {
+        html += `<strong>${svc}:</strong><ul>`;
+        arr.forEach(i=>{
+          html += `<li>${i.company}`
+               +  (i.contact_url?` <a href="${i.contact_url}" target="_blank">Contact</a>`:'')
+               +  (i.map_url?` <a href="${i.map_url}" target="_blank">Map</a>`:'')
+               +  `</li>`;
+        });
+        html += `</ul>`;
+      });
+
+      const marker = L.marker([lat,lon], {
+        icon: L.divIcon({ className:'supplier-icon', iconSize:[20,20] })
+      }).addTo(leafletMap);
+      marker.bindPopup(html);
+      leafletMarkers.push({ county, lat, lon, marker });
+    });
+  }
+
+  //———— Cesium 3D ————
+  let viewer, cesiumEntities = [];
+  function initCesium(data) {
     Cesium.Ion.defaultAccessToken = '';
-    const viewer = new Cesium.Viewer('cesiumContainer', {
+    viewer = new Cesium.Viewer('cesiumContainer', {
       imageryProvider: new Cesium.UrlTemplateImageryProvider({
-        url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+        url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
       }),
-      baseLayerPicker: false,
-      animation: false,
-      timeline: false
+      baseLayerPicker:false, animation:false, timeline:false
     });
 
-    // Load supplier and project data
-    async function loadData() {
-      const suppliers = await fetch('/suppliers').then(r => r.json());
-      const projects = await fetch('/projects').then(r => r.json());
-
-      const latlngs = [];
-
-      // Add to Leaflet
-      suppliers.forEach(s => {
-        if (s.lat && s.lon) {
-          const popup = `<b>${s.company}</b>${s.contact_url ? ` - <a href="${s.contact_url}" target="_blank">Link</a>` : ''}`;
-          L.circleMarker([s.lat, s.lon], { radius: 6, color: 'blue' })
-            .bindPopup(popup)
-            .addTo(map);
-          latlngs.push([s.lat, s.lon]);
-        }
-      });
-
-      projects.forEach(p => {
-        if (p.lat && p.lon) {
-          const popup = `<b>${p.project}</b>`;
-          L.circleMarker([p.lat, p.lon], { radius: 6, color: 'red' })
-            .bindPopup(popup)
-            .addTo(map);
-          latlngs.push([p.lat, p.lon]);
-        }
-      });
-
-      if (latlngs.length) {
-        map.fitBounds(latlngs);
-      }
-
-      // Add to Cesium
-      suppliers.forEach(s => {
-        if (s.lat && s.lon) {
-          viewer.entities.add({
-            position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat),
-            point: { pixelSize: 8, color: Cesium.Color.BLUE },
-            description: `<b>${s.company}</b>${s.contact_url ? `<br/><a href="${s.contact_url}" target="_blank">Link</a>` : ''}`
-          });
-        }
-      });
-
-      projects.forEach(p => {
-        if (p.lat && p.lon) {
-          viewer.entities.add({
-            position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat),
-            point: { pixelSize: 10, color: Cesium.Color.RED },
-            description: `<b>${p.project}</b>`
-          });
-        }
-      });
-
-      if (latlngs.length) {
-        const bounds = L.latLngBounds(latlngs);
-        const rect = Cesium.Rectangle.fromDegrees(
-          bounds.getWest(),
-          bounds.getSouth(),
-          bounds.getEast(),
-          bounds.getNorth()
-        );
-        viewer.camera.flyTo({ destination: rect });
-      }
-    }
-
-    // Toggle between 2D and 3D
-    document.getElementById('toggle').onclick = () => {
-      is3D = !is3D;
-      document.getElementById('map').style.display = is3D ? 'none' : 'block';
-      document.getElementById('cesiumContainer').style.display = is3D ? 'block' : 'none';
-      document.getElementById('toggle').innerText = is3D ? 'Switch to 2D' : 'Switch to 3D';
+    // bounding box
+    const longs = data.map(d=>d.lon), lats = data.map(d=>d.lat);
+    const bounds = {
+      w: Math.min(...longs), e: Math.max(...longs),
+      s: Math.min(...lats), n: Math.max(...lats)
     };
+    flyToCesium(bounds);
 
-    // Start with Leaflet map visible
-    document.getElementById('map').style.display = 'block';
-    loadData();
+    const byCounty = groupBy(data, d=>d.county);
+    Object.entries(byCounty).forEach(([county, items]) => {
+      const d = items[0];
+      const ent = viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(d.lon,d.lat),
+        point: { pixelSize: 10, color: Cesium.Color.BLUE },
+        description: (() => {
+          let desc = `<h2>${county}</h2>`;
+          const byService = groupBy(items, i=>i.service_type||'Other');
+          Object.entries(byService).forEach(([svc, arr])=>{
+            desc += `<strong>${svc}</strong><ul>`;
+            arr.forEach(i=>{
+              desc += `<li>${i.company}`
+                    + (i.contact_url?`<br/><a href="${i.contact_url}" target="_blank">Contact</a>`:'')
+                    + (i.map_url?`<br/><a href="${i.map_url}" target="_blank">Map</a>`:'')
+                    + `</li>`;
+            });
+            desc += `</ul>`;
+          });
+          return desc;
+        })()
+      });
+      cesiumEntities.push({ county, ent, lat:d.lat, lon:d.lon });
+    });
+  }
+
+  //———— Search ————
+  function doSearch(term) {
+    term = term.trim().toLowerCase();
+    if (!term) return;
+    // Leaflet
+    const m = leafletMarkers.find(m=>m.county.toLowerCase()===term);
+    if (m) {
+      fitLeaflet(leafletMap, {s:m.lat-0.5,n:m.lat+0.5,w:m.lon-0.5,e:m.lon+0.5});
+      m.marker.openPopup();
+    }
+    // Cesium
+    const c = cesiumEntities.find(e=>e.county.toLowerCase()===term);
+    if (c) {
+      flyToCesium({w:c.lon-1,e:c.lon+1,s:c.lat-1,n:c.lat+1});
+      viewer.selectedEntity = c.ent;
+    }
+  }
+
+  //———— Toggle ————
+  document.getElementById('toggleBtn').onclick = ()=>{
+    const mapDiv = document.getElementById('map'),
+          cesDiv = document.getElementById('cesiumContainer'),
+          btn    = document.getElementById('toggleBtn');
+    if (cesDiv.style.display==='none') {
+      mapDiv.style.display='none';
+      cesDiv.style.display='block';
+      btn.textContent='Switch to 2D';
+    } else {
+      cesDiv.style.display='none';
+      mapDiv.style.display='block';
+      btn.textContent='Switch to 3D';
+    }
+  };
+  document.getElementById('searchBtn').onclick = ()=>doSearch(document.getElementById('searchBox').value);
+
+  //———— Bootstrap ————
+  (async ()=>{
+    const suppliers = await loadSuppliers();
+    initLeaflet(suppliers);
+    initCesium(suppliers);
+  })();
   </script>
 </body>
 </html>
