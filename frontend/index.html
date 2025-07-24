@@ -16,6 +16,7 @@
     rel="stylesheet"
   />
 
+  <!-- Custom Styles -->
   <style>
     html, body { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; }
     #toolbar {
@@ -83,32 +84,35 @@
   }
 
   //———— Load Data ————
-  async function loadSuppliers() {
-    const resp = await fetch('/suppliers');
-    return await resp.json();
+  async function loadData() {
+    const [suppliers, projects] = await Promise.all([
+      fetch('/suppliers').then(r => r.json()),
+      fetch('/projects').then(r => r.json())
+    ]);
+    return { suppliers, projects };
   }
 
   //———— Leaflet 2D ————
   let leafletMap, leafletMarkers = [];
-  function initLeaflet(data) {
+  function initLeaflet(datasets) {
+    const { suppliers, projects } = datasets;
+    const all = suppliers.concat(projects);
     // bounding box
-    const lats = data.map(d=>d.lat), lons = data.map(d=>d.lon);
-    const bounds = {
-      s: Math.min(...lats), n: Math.max(...lats),
-      w: Math.min(...lons), e: Math.max(...lons)
-    };
+    const lats = all.map(d=>d.lat), lons = all.map(d=>d.lon);
+    const bounds = { s: Math.min(...lats), n: Math.max(...lats), w: Math.min(...lons), e: Math.max(...lons) };
+
     leafletMap = L.map('map');
     fitLeaflet(leafletMap, bounds);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(leafletMap);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' })
+     .addTo(leafletMap);
 
-    const byCounty = groupBy(data, d=>d.county);
-    Object.entries(byCounty).forEach(([county, items]) => {
-      const {lat, lon} = items[0];
+    // Suppliers (blue)
+    const supByCounty = groupBy(suppliers, d=>d.county);
+    Object.entries(supByCounty).forEach(([county, items]) => {
+      const { lat, lon } = items[0];
       let html = `<h2>${county}</h2>`;
-      const byService = groupBy(items, i=>i.service_type||'Other');
-      Object.entries(byService).forEach(([svc, arr]) => {
+      const svcGroups = groupBy(items, i=>i.service_type||'Other');
+      Object.entries(svcGroups).forEach(([svc, arr]) => {
         html += `<strong>${svc}:</strong><ul>`;
         arr.forEach(i=>{
           html += `<li>${i.company}`
@@ -119,99 +123,101 @@
         html += `</ul>`;
       });
 
-      const marker = L.marker([lat,lon], {
-        icon: L.divIcon({ className:'supplier-icon', iconSize:[20,20] })
-      }).addTo(leafletMap);
-      marker.bindPopup(html);
+      const marker = L.marker([lat,lon], { icon: L.divIcon({ className:'supplier-icon', iconSize:[20,20] }) })
+        .addTo(leafletMap)
+        .bindPopup(html);
       leafletMarkers.push({ county, lat, lon, marker });
+    });
+
+    // Projects (red)
+    projects.forEach(p => {
+      if (p.lat!=null && p.lon!=null) {
+        const popup = `<b>${p.project}</b>`;
+        L.circleMarker([p.lat,p.lon], { radius:6, color:'red' })
+         .addTo(leafletMap)
+         .bindPopup(popup);
+      }
     });
   }
 
   //———— Cesium 3D ————
   let viewer, cesiumEntities = [];
-  function initCesium(data) {
+  function initCesium(datasets) {
+    const { suppliers, projects } = datasets;
+    const all = suppliers.concat(projects);
+
     Cesium.Ion.defaultAccessToken = '';
     viewer = new Cesium.Viewer('cesiumContainer', {
-      imageryProvider: new Cesium.UrlTemplateImageryProvider({
-        url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-      }),
+      imageryProvider: new Cesium.UrlTemplateImageryProvider({ url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png' }),
       baseLayerPicker:false, animation:false, timeline:false
     });
 
     // bounding box
-    const longs = data.map(d=>d.lon), lats = data.map(d=>d.lat);
-    const bounds = {
-      w: Math.min(...longs), e: Math.max(...longs),
-      s: Math.min(...lats), n: Math.max(...lats)
-    };
+    const longs = all.map(d=>d.lon), lats = all.map(d=>d.lat);
+    const bounds = { w:Math.min(...longs), e:Math.max(...longs), s:Math.min(...lats), n:Math.max(...lats) };
     flyToCesium(bounds);
 
-    const byCounty = groupBy(data, d=>d.county);
-    Object.entries(byCounty).forEach(([county, items]) => {
-      const d = items[0];
+    // Suppliers (blue)
+    const supByCounty = groupBy(suppliers, d=>d.county);
+    Object.entries(supByCounty).forEach(([county, items]) => {
+      const d=items[0];
       const ent = viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(d.lon,d.lat),
-        point: { pixelSize: 10, color: Cesium.Color.BLUE },
-        description: (() => {
-          let desc = `<h2>${county}</h2>`;
-          const byService = groupBy(items, i=>i.service_type||'Other');
-          Object.entries(byService).forEach(([svc, arr])=>{
-            desc += `<strong>${svc}</strong><ul>`;
+        point: { pixelSize:10, color:Cesium.Color.BLUE },
+        description: (()=>{
+          let desc=`<h2>${county}</h2>`;
+          const svcG=groupBy(items,i=>i.service_type||'Other');
+          Object.entries(svcG).forEach(([svc,arr])=>{
+            desc+=`<strong>${svc}</strong><ul>`;
             arr.forEach(i=>{
-              desc += `<li>${i.company}`
+              desc+=`<li>${i.company}`
                     + (i.contact_url?`<br/><a href="${i.contact_url}" target="_blank">Contact</a>`:'')
                     + (i.map_url?`<br/><a href="${i.map_url}" target="_blank">Map</a>`:'')
                     + `</li>`;
             });
-            desc += `</ul>`;
+            desc+=`</ul>`;
           });
           return desc;
         })()
       });
       cesiumEntities.push({ county, ent, lat:d.lat, lon:d.lon });
     });
+
+    // Projects (red)
+    projects.forEach(p=>{
+      if(p.lat!=null && p.lon!=null) {
+        const ent = viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(p.lon,p.lat),
+          point: { pixelSize:10, color:Cesium.Color.RED },
+          description: `<b>${p.project}</b>`
+        });
+        cesiumEntities.push({ county:p.project, ent, lat:p.lat, lon:p.lon });
+      }
+    });
   }
 
   //———— Search ————
   function doSearch(term) {
-    term = term.trim().toLowerCase();
-    if (!term) return;
-    // Leaflet
-    const m = leafletMarkers.find(m=>m.county.toLowerCase()===term);
-    if (m) {
-      fitLeaflet(leafletMap, {s:m.lat-0.5,n:m.lat+0.5,w:m.lon-0.5,e:m.lon+0.5});
-      m.marker.openPopup();
-    }
-    // Cesium
-    const c = cesiumEntities.find(e=>e.county.toLowerCase()===term);
-    if (c) {
-      flyToCesium({w:c.lon-1,e:c.lon+1,s:c.lat-1,n:c.lat+1});
-      viewer.selectedEntity = c.ent;
-    }
+    term = term.trim().toLowerCase(); if(!term) return;
+    const m = leafletMarkers.find(x=>x.county.toLowerCase()===term);
+    if(m) { fitLeaflet(leafletMap,{s:m.lat-0.5,n:m.lat+0.5,w:m.lon-0.5,e:m.lon+0.5}); m.marker.openPopup(); }
+    const c = cesiumEntities.find(x=>x.county.toLowerCase()===term);
+    if(c) { flyToCesium({w:c.lon-1,e:c.lon+1,s:c.lat-1,n:c.lat+1}); viewer.selectedEntity=c.ent; }
   }
 
   //———— Toggle ————
   document.getElementById('toggleBtn').onclick = ()=>{
-    const mapDiv = document.getElementById('map'),
-          cesDiv = document.getElementById('cesiumContainer'),
-          btn    = document.getElementById('toggleBtn');
-    if (cesDiv.style.display==='none') {
-      mapDiv.style.display='none';
-      cesDiv.style.display='block';
-      btn.textContent='Switch to 2D';
-    } else {
-      cesDiv.style.display='none';
-      mapDiv.style.display='block';
-      btn.textContent='Switch to 3D';
-    }
+    const m=document.getElementById('map'), c=document.getElementById('cesiumContainer'), b=document.getElementById('toggleBtn');
+    if(c.style.display==='none'){m.style.display='none';c.style.display='block';b.textContent='Switch to 2D';}
+    else {c.style.display='none';m.style.display='block';b.textContent='Switch to 3D';}
   };
   document.getElementById('searchBtn').onclick = ()=>doSearch(document.getElementById('searchBox').value);
 
   //———— Bootstrap ————
-  (async ()=>{
-    const suppliers = await loadSuppliers();
-    initLeaflet(suppliers);
-    initCesium(suppliers);
+  (async()=>{
+    const data = await loadData();
+    initLeaflet(data);
+    initCesium(data);
   })();
   </script>
 </body>
