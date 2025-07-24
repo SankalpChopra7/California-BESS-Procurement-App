@@ -19,8 +19,19 @@ def safe_value(val):
     # Converts pandas NaN → None
     return None if isinstance(val, float) and math.isnan(val) else val
 
+def _extract_lat_lon(row):
+    """Try to pull numeric lat/lon columns from a pandas row."""
+    lat = lon = None
+    for col in row.index:
+        lc = col.lower()
+        if lat is None and 'lat' in lc:
+            lat = safe_value(row[col])
+        if lon is None and ('lon' in lc or 'lng' in lc):
+            lon = safe_value(row[col])
+    return lat, lon
+
 def parse_suppliers():
-    # Use openpyxl for hyperlink extraction
+    # Use openpyxl for hyperlink extraction so we keep hyperlinks for popups
     wb = load_workbook(EXCEL_PATH, data_only=True)
     suppliers = []
 
@@ -48,8 +59,7 @@ def parse_suppliers():
             contact_cell = ws.cell(row=idx+2, column=contact_col) if contact_col else None
             map_cell     = ws.cell(row=idx+2, column=maps_col) if maps_col else None
 
-            lat = safe_value(row.get("Latitude"))
-            lon = safe_value(row.get("Longitude"))
+            lat, lon = _extract_lat_lon(row)
             if lat is None or lon is None:
                 lat = STATE_COORDS[state_key]["lat"]
                 lon = STATE_COORDS[state_key]["lon"]
@@ -75,14 +85,19 @@ def parse_projects():
     projects = []
 
     for _, row in sites.iterrows():
+        lat, lon = _extract_lat_lon(row)
+        if lat is None or lon is None:
+            lat = STATE_COORDS["California"]["lat"]
+            lon = STATE_COORDS["California"]["lon"]
+
         projects.append({
             "project":   safe_value(row.get("SOLV BESS PROJECT")),
             "location":  safe_value(row.get("Location")),
             "mw_ac":     safe_value(row.get("MW AC Capacity")),
             "mw_dc":     safe_value(row.get("MW DC Capacity")),
             "client":    safe_value(row.get("Client")),
-            "lat":       STATE_COORDS["California"]["lat"],
-            "lon":       STATE_COORDS["California"]["lon"],
+            "lat":       lat,
+            "lon":       lon,
         })
 
     return projects
