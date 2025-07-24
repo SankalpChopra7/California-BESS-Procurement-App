@@ -24,35 +24,46 @@ def parse_suppliers():
     wb = load_workbook(EXCEL_PATH, data_only=True)
     suppliers = []
 
-    for sheet_name, state_key in [
-        ("California County Data ", "California"),
-        ("Arizona County Data ",   "Arizona"),
-        ("Texas County Data",       "Texas")
-    ]:
-        ws     = wb[sheet_name]
-        header = [c.value for c in ws[1]]
-        # find columns
-        contact_col = header.index("Contact") + 1
-        maps_col    = header.index("Location on Google Maps") + 1
+    sheet_cfg = [
+        # (sheet name, state key, county column, contact column, map column)
+        ("California County Data ", "California",
+         "California County", "Contact", "Location on Google Maps"),
+        ("Arizona County Data ", "Arizona",
+         "Arizona  County", "Company Website", "Location on Google Maps"),
+        ("Texas County Data", "Texas",
+         "Texas County", None, "Link to Google Maps"),
+    ]
+
+    for sheet_name, state_key, county_col, contact_hdr, map_hdr in sheet_cfg:
+        ws = wb[sheet_name]
+        header = [str(c.value).strip() if c.value else "" for c in ws[1]]
+        contact_col = header.index(contact_hdr) + 1 if contact_hdr in header else None
+        maps_col = header.index(map_hdr) + 1 if map_hdr in header else None
 
         # read into pandas (to get text fields)
         df = pd.read_excel(EXCEL_PATH, sheet_name=sheet_name, dtype=str)
         df.rename(columns=lambda c: str(c).strip(), inplace=True)
 
         for idx, row in df.iterrows():
-            # row 2 in Excel is idx=0 here, so +2
-            contact_cell = ws.cell(row=idx+2, column=contact_col)
-            map_cell     = ws.cell(row=idx+2, column=maps_col)
+            contact_cell = ws.cell(row=idx+2, column=contact_col) if contact_col else None
+            map_cell     = ws.cell(row=idx+2, column=maps_col) if maps_col else None
+
+            lat = safe_value(row.get("Latitude"))
+            lon = safe_value(row.get("Longitude"))
+            if lat is None or lon is None:
+                lat = STATE_COORDS[state_key]["lat"]
+                lon = STATE_COORDS[state_key]["lon"]
 
             suppliers.append({
                 "state":        state_key,
-                "county":       safe_value(row.get(f"{state_key} County")),
+                "county":       safe_value(row.get(county_col)),
                 "service_type": safe_value(row.get("Service Type")),
                 "company":      safe_value(row.get("Company Name")),
-                "contact_url":  contact_cell.hyperlink.target if contact_cell.hyperlink else None,
-                "map_url":      map_cell.hyperlink.target     if map_cell.hyperlink     else None,
-                "lat":          STATE_COORDS[state_key]["lat"],
-                "lon":          STATE_COORDS[state_key]["lon"],
+                "notes":        safe_value(row.get("Notes")),
+                "contact_url":  contact_cell.hyperlink.target if contact_cell and contact_cell.hyperlink else None,
+                "map_url":      map_cell.hyperlink.target     if map_cell and map_cell.hyperlink     else None,
+                "lat":          lat,
+                "lon":          lon,
             })
 
     return suppliers
