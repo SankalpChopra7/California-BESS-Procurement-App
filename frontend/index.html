@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CA-AZ-TX BESS Procurement Dashboard</title>
+  <title>CA‑AZ‑TX BESS Procurement Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Leaflet CSS -->
@@ -16,14 +16,8 @@
     rel="stylesheet"
   />
 
-  <!-- Custom Styles -->
   <style>
     html, body { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; }
-    #map, #cesiumContainer {
-      position:absolute; top:50px; left:0;
-      width:100%; height:calc(100% - 50px);
-    }
-    #cesiumContainer { display:none; }
     #toolbar {
       position:absolute; top:0; left:0; width:100%; height:50px;
       background:#fff; border-bottom:1px solid #ddd;
@@ -39,15 +33,21 @@
       cursor:pointer;
     }
     #toolbar button:hover { background:#0056b3; }
-    /* Popup scrollbars */
+
+    #map, #cesiumContainer {
+      position:absolute; top:50px; left:0;
+      width:100%; height:calc(100% - 50px);
+    }
+    #cesiumContainer { display:none; }
+
     .leaflet-popup-content, .cesium-popup {
       max-height:300px; overflow:auto;
     }
     .leaflet-popup-content h2 { margin:0 0 .5em; font-size:1.1em; }
     .leaflet-popup-content ul { padding-left:1.2em; margin:0 0 .5em; }
-    /* Custom Leaflet marker icons */
-    .supplier-icon { background: #28a745; border-radius: 50%; width:20px; height:20px; display:block; }
-    .project-icon  { background: #dc3545; border-radius: 50%; width:20px; height:20px; display:block; }
+
+    .supplier-icon { background: #28a745; border-radius: 50%; width:20px; height:20px; }
+    .project-icon  { background: #dc3545; border-radius: 50%; width:20px; height:20px; }
   </style>
 </head>
 <body>
@@ -91,13 +91,11 @@
   //———— Leaflet 2D ————
   let leafletMap, leafletMarkers = [];
   function initLeaflet(data) {
-    // compute bounding box
+    // bounding box
     const lats = data.map(d=>d.lat), lons = data.map(d=>d.lon);
     const bounds = {
-      s: Math.min(...lats),
-      n: Math.max(...lats),
-      w: Math.min(...lons),
-      e: Math.max(...lons)
+      s: Math.min(...lats), n: Math.max(...lats),
+      w: Math.min(...lons), e: Math.max(...lons)
     };
     leafletMap = L.map('map');
     fitLeaflet(leafletMap, bounds);
@@ -107,8 +105,7 @@
 
     const byCounty = groupBy(data, d=>d.county);
     Object.entries(byCounty).forEach(([county, items]) => {
-      const lat = items[0].lat, lon = items[0].lon;
-      // build popup
+      const {lat, lon} = items[0];
       let html = `<h2>${county}</h2>`;
       const byService = groupBy(items, i=>i.service_type||'Other');
       Object.entries(byService).forEach(([svc, arr]) => {
@@ -123,7 +120,7 @@
       });
 
       const marker = L.marker([lat,lon], {
-        icon: L.divIcon({ className:'supplier-icon' })
+        icon: L.divIcon({ className:'supplier-icon', iconSize:[20,20] })
       }).addTo(leafletMap);
       marker.bindPopup(html);
       leafletMarkers.push({ county, lat, lon, marker });
@@ -142,18 +139,13 @@
     });
 
     // bounding box
-    const coords = data.map(d=>Cesium.Cartesian3.fromDegrees(d.lon,d.lat));
-    const longs = data.map((_,i)=>coords[i].longitude),
-          lats  = data.map((_,i)=>coords[i].latitude);
+    const longs = data.map(d=>d.lon), lats = data.map(d=>d.lat);
     const bounds = {
-      w: Math.min(...longs),
-      e: Math.max(...longs),
-      s: Math.min(...lats),
-      n: Math.max(...lats)
+      w: Math.min(...longs), e: Math.max(...longs),
+      s: Math.min(...lats), n: Math.max(...lats)
     };
     flyToCesium(bounds);
 
-    // add entities
     const byCounty = groupBy(data, d=>d.county);
     Object.entries(byCounty).forEach(([county, items]) => {
       const d = items[0];
@@ -163,7 +155,7 @@
         description: (() => {
           let desc = `<h2>${county}</h2>`;
           const byService = groupBy(items, i=>i.service_type||'Other');
-          for (let [svc, arr] of Object.entries(byService)) {
+          Object.entries(byService).forEach(([svc, arr])=>{
             desc += `<strong>${svc}</strong><ul>`;
             arr.forEach(i=>{
               desc += `<li>${i.company}`
@@ -172,7 +164,7 @@
                     + `</li>`;
             });
             desc += `</ul>`;
-          }
+          });
           return desc;
         })()
       });
@@ -184,13 +176,13 @@
   function doSearch(term) {
     term = term.trim().toLowerCase();
     if (!term) return;
-    // 2D
+    // Leaflet
     const m = leafletMarkers.find(m=>m.county.toLowerCase()===term);
     if (m) {
       fitLeaflet(leafletMap, {s:m.lat-0.5,n:m.lat+0.5,w:m.lon-0.5,e:m.lon+0.5});
       m.marker.openPopup();
     }
-    // 3D
+    // Cesium
     const c = cesiumEntities.find(e=>e.county.toLowerCase()===term);
     if (c) {
       flyToCesium({w:c.lon-1,e:c.lon+1,s:c.lat-1,n:c.lat+1});
@@ -215,7 +207,7 @@
   };
   document.getElementById('searchBtn').onclick = ()=>doSearch(document.getElementById('searchBox').value);
 
-  //———— Bootstrap on load ————
+  //———— Bootstrap ————
   (async ()=>{
     const suppliers = await loadSuppliers();
     initLeaflet(suppliers);
